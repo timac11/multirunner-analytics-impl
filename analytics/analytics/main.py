@@ -5,7 +5,7 @@ import numpy as np
 
 class Distribution:
     def __init__(self, arr: [float]):
-        assert reduce(lambda a, b: a+b, arr) == 1
+        assert 1 - reduce(lambda a, b: a+b, arr) <= 0.0001
         self._distribution = arr
 
     def __len__(self):
@@ -40,6 +40,7 @@ class Equation:
         assert _mu > 0
 
         self.matrices = []
+        self.res = None
 
         self.matrix = np.array([])
         self.answer = np.array([])
@@ -67,8 +68,19 @@ class Equation:
             self.answer = np.zeros(matrix.shape[1])
             self.answer[0] = 1
 
-    def solve(self):
-        return np.linalg.solve(self.matrix, self.answer)
+    def solve(self) -> np.ndarray:
+        self.res = np.linalg.solve(self.matrix, self.answer)
+        return self.res
+
+    def _get_p_n_r_m(self, n, r, m) -> float:
+        if self.res is None:
+            return 0
+        if n == 0 and r <= len(self._distribution) and m <= self.num_servers:
+            return self.res[r + m]
+        if n >= 1 and r <= len(self._distribution) and m == self.num_servers:
+            return self.res[r + len(self._distribution) * n + m]
+
+        raise Exception('Invalid arguments, state is not exist')
 
     def __fill_first_part(self):
         M = self.num_servers
@@ -162,3 +174,59 @@ class Equation:
         N = self.problems_max_number
 
         return np.zeros(M + N*K + 1)
+    
+    def avg_problems_in_buffer(self):
+        res = 0
+
+        for n in range(1, self.problems_max_number):
+            for r in range(1, len(self._distribution) + 1):
+                res += n * self._get_p_n_r_m(n, r, self.num_servers)
+
+        return res
+
+    def avg_busy_servers(self):
+        res = 0
+        prob = 0
+
+        for m in range(1, self.num_servers + 1):
+            res += m * self._get_p_n_r_m(0, 0, m)
+            prob += self._get_p_n_r_m(0, 0, m)
+
+        assert prob >= 0
+        assert prob <= 1
+
+        res += self.num_servers * (1 - prob)
+        return res
+
+    def avg_tasks_in_buffer(self):
+        res = 0
+
+        for r in range(1, len(self._distribution) + 1):
+            res += r * self._get_p_n_r_m(0, r, self.num_servers)
+
+        avg_tasks = self._distribution.avg()
+
+        for n in range(1, self.problems_max_number):
+            for r in range(1, len(self._distribution) + 1):
+                res += self._get_p_n_r_m(n, r, self.num_servers) * (n * avg_tasks + r)
+
+        return res
+
+    def avg_tasks_in_system(self):
+        return self.avg_tasks_in_buffer() + self.avg_busy_servers()
+
+    def avg_problem_time_in_buffer(self):
+        return self.avg_problems_in_buffer() / self._lambda
+
+    def system_is_empty(self):
+        return self.res[0]
+
+    def calculate_metrics(self):
+        return {
+            'avg_problems_in_buffer': self.avg_problems_in_buffer(),
+            'busy_servers': self.avg_busy_servers(),
+            'avg_tasks_in_buffer': self.avg_tasks_in_buffer(),
+            'avg_tasks_in_system': self.avg_tasks_in_system(),
+            'avg_problem_time_in_buffer': self.avg_problem_time_in_buffer(),
+            'system_is_empty': self.system_is_empty()
+        }

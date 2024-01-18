@@ -5,8 +5,8 @@ from analytics.main import Equation, Distribution
 
 def test_main():
     distrib = Distribution([0.1, 0.01, 0.3, 0.59])
-    _lambda = 0.5
-    _mu = 1
+    _lambda = 1
+    _mu = 4
 
     K = len(distrib)
     M = 2
@@ -139,3 +139,6 @@ def test_main():
                 assert third[row_index][j] == 0
 
     solution = eq.solve()
+    metrics = eq.calculate_metrics()
+
+    print(metrics)
