@@ -192,8 +192,10 @@ class Equation:
             res += m * self._get_p_n_r_m(0, 0, m)
             prob += self._get_p_n_r_m(0, 0, m)
 
-        assert prob >= 0
+        #assert prob >= 0
         assert prob <= 1
+
+        prob += self._get_p_n_r_m(0, 0, 0)
 
         res += self.num_servers * (1 - prob)
         return res
